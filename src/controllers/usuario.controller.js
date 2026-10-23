@@ -233,10 +233,76 @@ const excluir = async (req, res) => {
     }
 };
 
+
+const login = async (req, res) => {
+    try {
+        const { email, senha } = req.body;
+
+        if (!email || !senha) {
+            return res.status(400).json({
+                mensagem: "E-mail e senha são obrigatórios."
+            });
+        }
+
+        const emailNormalizado = email.trim().toLowerCase();
+
+        const usuario = await prisma.usuario.findUnique({
+            where: {
+                email: emailNormalizado
+            }
+        });
+
+        if (!usuario) {
+            return res.status(401).json({
+                mensagem: "E-mail ou senha incorretos."
+            });
+        }
+
+        let senhaValida = false;
+
+        // Verifica se a senha está criptografada com bcrypt.
+        if (
+            typeof usuario.senha === "string" &&
+            usuario.senha.startsWith("$2")
+        ) {
+            senhaValida = await bcrypt.compare(
+                senha,
+                usuario.senha
+            );
+        } else {
+            // Compatibilidade temporária com senhas antigas sem hash.
+            senhaValida = usuario.senha === senha;
+        }
+
+        if (!senhaValida) {
+            return res.status(401).json({
+                mensagem: "E-mail ou senha incorretos."
+            });
+        }
+
+        return res.status(200).json({
+            mensagem: "Login realizado com sucesso!",
+            usuario: {
+                id: usuario.id,
+                nome: usuario.nome,
+                email: usuario.email
+            }
+        });
+    } catch (erro) {
+        console.error("Erro ao realizar login:", erro);
+
+        return res.status(500).json({
+            mensagem: "Erro interno ao realizar login."
+        });
+    }
+};
+
+
 module.exports = {
     cadastrar,
     listar,
     buscar,
     atualizar,
-    excluir
+    excluir,
+    login
 };
